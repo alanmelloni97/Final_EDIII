@@ -485,6 +485,7 @@ void generacionPWM(void const * argument){
 		if(pwm!=pwm_ant){
 			TIM3->ARR = pwm;
 			TIM3->CCR1 = pwm/2;
+			TIM3->CNT=0;
 			pwm_ant=pwm;
 		}
 	}

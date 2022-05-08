@@ -465,11 +465,28 @@ void FiltroDistancia(void const * argument)
 }
 
 void generacionPWM(void const * argument){
-
+	int pwm;
+	int pwm_ant=0;
 	while(1){
 		xSemaphoreTake(semaforo2,portMAX_DELAY);
-		TIM3->ARR=distancia;
-		TIM3->CCR1=distancia/2;
+
+		if(distancia>600)	//si el sensor indica que no recibió el pulso, seteo la distancia máxima que puede medir
+			pwm = 600;
+
+		// redondeo los períodos posibles a multiplos de 5
+		if(distancia % 10 < 5)
+			pwm = distancia - distancia % 10;
+		else if(distancia % 10 >=5)
+			pwm = distancia + 10 -distancia % 10;
+
+		uartBufferLen=sprintf(uart_buf,"%u pwm \r\n",pwm);
+		HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
+
+		if(pwm!=pwm_ant){
+			TIM3->ARR = pwm;
+			TIM3->CCR1 = pwm/2;
+			pwm_ant=pwm;
+		}
 	}
 }
 

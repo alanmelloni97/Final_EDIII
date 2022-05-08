@@ -32,6 +32,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define TAM_FILTRO 5
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -130,7 +131,7 @@ int main(void)
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   xTaskCreate((void*) TrigSensor, "primera tarea", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+1, NULL);
-  xTaskCreate((void*) FiltroDistancia, "segunda tarea", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+1, NULL);
+  xTaskCreate((void*) FiltroDistancia, "segunda tarea", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+2, NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
@@ -336,7 +337,6 @@ int valorInicial=0;
 int valorFinal=0;
 int pulso=0;
 int velocidadSonido=343;
-float distancia=0;
 
 uint32_t uartBufferLen=0;
 char uart_buf [50];
@@ -376,22 +376,28 @@ void TrigSensor(void const * argument)
   /* USER CODE END 5 */
 }
 
-int muestras=0;
-
+float muestras[TAM_FILTRO]={0};
+int pos=0;
+int distancia;
 void FiltroDistancia(void const * argument)
 {
   /* USER CODE BEGIN 5 */
+	float suma;
+	int i;
   /* Infinite loop */
   while(1)
   {
 	  xSemaphoreTake(semaforo1,portMAX_DELAY);
 
-	  distancia=(float) pulso*343*100/(2*1000000);
-	  muestras++;
-	  if(muestras==10){
-		  muestras=0;
-		  //filtrado
-		  uartBufferLen=sprintf(uart_buf,"%u Cm \r\n",(int)distancia);
+	  muestras[pos]=(float) pulso*343*100/(2*1000000);
+	  pos++;
+	  if(pos==TAM_FILTRO){
+		  pos=0;
+		  for(i = 0; i < TAM_FILTRO; i++)
+		      suma = suma + muestras[i];
+		  distancia=(int) suma/TAM_FILTRO;
+		  suma=0;
+		  uartBufferLen=sprintf(uart_buf,"%u Cm \r\n",distancia);
 		  HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
 	  }
 

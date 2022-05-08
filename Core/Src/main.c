@@ -105,7 +105,7 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);	//Timer que captura el ECHO del sensor
-  //HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);		//Timer que genera la señal sonora
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);		//Timer que genera la señal sonora
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -132,14 +132,14 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityIdle, 0, 128);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   xTaskCreate((void*) TrigSensor, "trigger", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+1, NULL);
   xTaskCreate((void*) FiltroDistancia, "filtro", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+2, NULL);
-  //xTaskCreate((void*) generacionPWM, "PWM", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+0, NULL);
+  xTaskCreate((void*) generacionPWM, "PWM", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+0, NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
@@ -464,12 +464,14 @@ void FiltroDistancia(void const * argument)
   /* USER CODE END 5 */
 }
 
-//void generacionPWM(void const * argument){
-//	xSemaphoreTake(semaforo2,portMAX_DELAY);
-//	TIM3->ARR=200;
-//	TIM3->CCR1=10;
-//
-//}
+void generacionPWM(void const * argument){
+
+	while(1){
+		xSemaphoreTake(semaforo2,portMAX_DELAY);
+		TIM3->ARR=distancia;
+		TIM3->CCR1=distancia/2;
+	}
+}
 
 
 

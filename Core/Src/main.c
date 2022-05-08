@@ -42,12 +42,14 @@
 
 /* Private variables ---------------------------------------------------------*/
  TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
 
 osThreadId defaultTaskHandle;
 /* USER CODE BEGIN PV */
 SemaphoreHandle_t semaforo1;
+SemaphoreHandle_t semaforo2;
 
 /* USER CODE END PV */
 
@@ -56,11 +58,13 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM3_Init(void);
 void StartDefaultTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
 void TrigSensor(void const * argument);
 void FiltroDistancia(void const * argument);
+void generacionPWM(void const * argument);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -98,8 +102,10 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);	//Timer que captura el ECHO del sensor
+  //HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);		//Timer que genera la señal sonora
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -108,10 +114,11 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
+
   semaforo1=xSemaphoreCreateBinary();
-
-
+  semaforo2=xSemaphoreCreateBinary();
   xSemaphoreGive(semaforo1);
+  xSemaphoreGive(semaforo2);
 
   /* USER CODE END RTOS_SEMAPHORES */
 
@@ -130,8 +137,9 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
-  xTaskCreate((void*) TrigSensor, "primera tarea", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+1, NULL);
-  xTaskCreate((void*) FiltroDistancia, "segunda tarea", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+2, NULL);
+  xTaskCreate((void*) TrigSensor, "trigger", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+1, NULL);
+  xTaskCreate((void*) FiltroDistancia, "filtro", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+2, NULL);
+  //xTaskCreate((void*) generacionPWM, "PWM", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+0, NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
@@ -253,6 +261,55 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 8400-1;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 100;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 50;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
 
 }
 
@@ -399,12 +456,21 @@ void FiltroDistancia(void const * argument)
 		  suma=0;
 		  uartBufferLen=sprintf(uart_buf,"%u Cm \r\n",distancia);
 		  HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
+		  xSemaphoreGive(semaforo2);
 	  }
 
 
   }
   /* USER CODE END 5 */
 }
+
+//void generacionPWM(void const * argument){
+//	xSemaphoreTake(semaforo2,portMAX_DELAY);
+//	TIM3->ARR=200;
+//	TIM3->CCR1=10;
+//
+//}
+
 
 
 
@@ -423,11 +489,10 @@ void StartDefaultTask(void const * argument)
   /* Infinite loop */
   while(1)
   {
-
 	HAL_GPIO_WritePin(Trig_GPIO_Port, Trig_Pin, GPIO_PIN_SET);
-	vTaskDelay(1/portTICK_RATE_MS);
+	vTaskDelay(1/portTICK_PERIOD_MS);
 	HAL_GPIO_WritePin(Trig_GPIO_Port, Trig_Pin, GPIO_PIN_RESET);
-	vTaskDelay(40/portTICK_RATE_MS);
+	vTaskDelay(40/portTICK_PERIOD_MS);
   }
   /* USER CODE END 5 */
 }

@@ -398,8 +398,11 @@ int velocidadSonido=343;
 uint32_t uartBufferLen=0;
 char uart_buf [50];
 
+
+
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 
+	// Calculo el ancho del pulso que triguereó la interrupción
 	if(flancoAscendenteCapturado==0){
 		valorInicial=HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
 		flancoAscendenteCapturado=1;
@@ -426,9 +429,9 @@ void TrigSensor(void const * argument)
   while(1)
   {
 	HAL_GPIO_WritePin(Trig_GPIO_Port, Trig_Pin, GPIO_PIN_SET);
-	vTaskDelay(1/portTICK_PERIOD_MS);
+	vTaskDelay(1/portTICK_PERIOD_MS);		// Delay de 1 ms
 	HAL_GPIO_WritePin(Trig_GPIO_Port, Trig_Pin, GPIO_PIN_RESET);
-	vTaskDelay(40/portTICK_PERIOD_MS);
+	vTaskDelay(40/portTICK_PERIOD_MS);		//Delay de 40 ms (output máximo del sensor: 38 ms)
   }
   /* USER CODE END 5 */
 }
@@ -441,21 +444,25 @@ void FiltroDistancia(void const * argument)
   /* USER CODE BEGIN 5 */
 	float suma;
 	int i;
+
   /* Infinite loop */
   while(1)
   {
 	  xSemaphoreTake(semaforo1,portMAX_DELAY);
 
+	  //agrego muestra a muestras[], cuando tengo 5 doy el semaforo 2 para generar el nuevo pulso
 	  muestras[pos]=(float) pulso*343*100/(2*1000000);
 	  pos++;
 	  if(pos==TAM_FILTRO){
 		  pos=0;
+		  //saco el promedio de las muestras
 		  for(i = 0; i < TAM_FILTRO; i++)
 		      suma = suma + muestras[i];
 		  distancia=(int) suma/TAM_FILTRO;
 		  suma=0;
-		  uartBufferLen=sprintf(uart_buf,"%u Cm \r\n",distancia);
-		  HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
+		  //debug con uart
+//		  uartBufferLen=sprintf(uart_buf,"%u Cm \r\n",distancia);
+//		  HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
 		  xSemaphoreGive(semaforo2);
 	  }
 
@@ -479,13 +486,14 @@ void generacionPWM(void const * argument){
 		else if(distancia % 10 >=5)
 			pwm = distancia + 10 -distancia % 10;
 
-		uartBufferLen=sprintf(uart_buf,"%u pwm \r\n",pwm);
-		HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
+		//uart debug
+//		uartBufferLen=sprintf(uart_buf,"%u pwm \r\n",pwm);
+//		HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
 
 		if(pwm!=pwm_ant){
-			TIM3->ARR = pwm;
-			TIM3->CCR1 = pwm/2;
-			TIM3->CNT=0;
+			TIM3->ARR = pwm;	//seteo período del pulso
+			TIM3->CCR1 = pwm/2;	//seteo tiempo que el pulso está en HIGH (la mitad para tener duty cicle=50%)
+			TIM3->CNT=0;		//reseteo cuenta para evitar cambiar ARR a un valor más chico que la cuenta y que el timer siga de largo
 			pwm_ant=pwm;
 		}
 	}

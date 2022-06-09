@@ -1267,10 +1267,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
  8000a90:	40020000 	.word	0x40020000
 
 08000a94 <HAL_TIM_IC_CaptureCallback>:
-int velocidadSonido=343;
-
 uint32_t uartBufferLen=0;
 char uart_buf [50];
+
+
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
  8000a94:	b580      	push	{r7, lr}
@@ -1278,6 +1278,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
  8000a98:	af00      	add	r7, sp, #0
  8000a9a:	6078      	str	r0, [r7, #4]
 
+	// Calculo el ancho del pulso que triguereó la interrupción
 	if(flancoAscendenteCapturado==0){
  8000a9c:	4b33      	ldr	r3, [pc, #204]	; (8000b6c <HAL_TIM_IC_CaptureCallback+0xd8>)
  8000a9e:	681b      	ldr	r3, [r3, #0]
@@ -1421,7 +1422,7 @@ void TrigSensor(void const * argument)
  8000b8e:	2101      	movs	r1, #1
  8000b90:	4807      	ldr	r0, [pc, #28]	; (8000bb0 <TrigSensor+0x2c>)
  8000b92:	f000 fe1d 	bl	80017d0 <HAL_GPIO_WritePin>
-	vTaskDelay(1/portTICK_PERIOD_MS);
+	vTaskDelay(1/portTICK_PERIOD_MS);		// Delay de 1 ms
  8000b96:	2001      	movs	r0, #1
  8000b98:	f004 f93a 	bl	8004e10 <vTaskDelay>
 	HAL_GPIO_WritePin(Trig_GPIO_Port, Trig_Pin, GPIO_PIN_RESET);
@@ -1429,7 +1430,7 @@ void TrigSensor(void const * argument)
  8000b9e:	2101      	movs	r1, #1
  8000ba0:	4803      	ldr	r0, [pc, #12]	; (8000bb0 <TrigSensor+0x2c>)
  8000ba2:	f000 fe15 	bl	80017d0 <HAL_GPIO_WritePin>
-	vTaskDelay(40/portTICK_PERIOD_MS);
+	vTaskDelay(40/portTICK_PERIOD_MS);		//Delay de 40 ms (output máximo del sensor: 38 ms)
  8000ba6:	2028      	movs	r0, #40	; 0x28
  8000ba8:	f004 f932 	bl	8004e10 <vTaskDelay>
 	HAL_GPIO_WritePin(Trig_GPIO_Port, Trig_Pin, GPIO_PIN_SET);
@@ -1460,6 +1461,7 @@ void FiltroDistancia(void const * argument)
  8000bc4:	4618      	mov	r0, r3
  8000bc6:	f003 fd6b 	bl	80046a0 <xQueueSemaphoreTake>
 
+	  //agrego muestra a muestras[], cuando tengo 5 doy el semaforo 2 para generar el nuevo pulso
 	  muestras[pos]=(float) pulso*343*100/(2*1000000);
  8000bca:	4b34      	ldr	r3, [pc, #208]	; (8000c9c <FiltroDistancia+0xe8>)
  8000bcc:	681b      	ldr	r3, [r3, #0]
@@ -1492,6 +1494,7 @@ void FiltroDistancia(void const * argument)
  8000c0e:	4b26      	ldr	r3, [pc, #152]	; (8000ca8 <FiltroDistancia+0xf4>)
  8000c10:	2200      	movs	r2, #0
  8000c12:	601a      	str	r2, [r3, #0]
+		  //saco el promedio de las muestras
 		  for(i = 0; i < TAM_FILTRO; i++)
  8000c14:	2300      	movs	r3, #0
  8000c16:	60bb      	str	r3, [r7, #8]
@@ -1526,6 +1529,7 @@ void FiltroDistancia(void const * argument)
 		  suma=0;
  8000c5a:	f04f 0300 	mov.w	r3, #0
  8000c5e:	60fb      	str	r3, [r7, #12]
+		  //debug con uart
 		  uartBufferLen=sprintf(uart_buf,"%u Cm \r\n",distancia);
  8000c60:	4b15      	ldr	r3, [pc, #84]	; (8000cb8 <FiltroDistancia+0x104>)
  8000c62:	681b      	ldr	r3, [r3, #0]
@@ -1669,6 +1673,7 @@ void generacionPWM(void const * argument){
  8000d7c:	1a83      	subs	r3, r0, r2
  8000d7e:	60fb      	str	r3, [r7, #12]
 
+		//uart debug
 		uartBufferLen=sprintf(uart_buf,"%u pwm \r\n",pwm);
  8000d80:	68fa      	ldr	r2, [r7, #12]
  8000d82:	4915      	ldr	r1, [pc, #84]	; (8000dd8 <generacionPWM+0x108>)
@@ -1692,11 +1697,11 @@ void generacionPWM(void const * argument){
  8000da6:	68bb      	ldr	r3, [r7, #8]
  8000da8:	429a      	cmp	r2, r3
  8000daa:	d097      	beq.n	8000cdc <generacionPWM+0xc>
-			TIM3->ARR = pwm;
+			TIM3->ARR = pwm;	//seteo período del pulso
  8000dac:	4a0e      	ldr	r2, [pc, #56]	; (8000de8 <generacionPWM+0x118>)
  8000dae:	68fb      	ldr	r3, [r7, #12]
  8000db0:	62d3      	str	r3, [r2, #44]	; 0x2c
-			TIM3->CCR1 = pwm/2;
+			TIM3->CCR1 = pwm/2;	//seteo tiempo que el pulso está en HIGH (la mitad para tener duty cicle=50%)
  8000db2:	68fb      	ldr	r3, [r7, #12]
  8000db4:	0fda      	lsrs	r2, r3, #31
  8000db6:	4413      	add	r3, r2
@@ -1704,7 +1709,7 @@ void generacionPWM(void const * argument){
  8000dba:	461a      	mov	r2, r3
  8000dbc:	4b0a      	ldr	r3, [pc, #40]	; (8000de8 <generacionPWM+0x118>)
  8000dbe:	635a      	str	r2, [r3, #52]	; 0x34
-			TIM3->CNT=0;
+			TIM3->CNT=0;		//reseteo cuenta para evitar cambiar ARR a un valor más chico que la cuenta y que el timer siga de largo
  8000dc0:	4b09      	ldr	r3, [pc, #36]	; (8000de8 <generacionPWM+0x118>)
  8000dc2:	2200      	movs	r2, #0
  8000dc4:	625a      	str	r2, [r3, #36]	; 0x24

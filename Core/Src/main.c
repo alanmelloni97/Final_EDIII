@@ -137,9 +137,9 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
-  xTaskCreate((void*) TrigSensor, "trigger", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+1, NULL);
-  xTaskCreate((void*) FiltroDistancia, "filtro", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+2, NULL);
-  xTaskCreate((void*) generacionPWM, "PWM", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+0, NULL);
+  xTaskCreate((void*) TrigSensor, "trigger", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+2, NULL);
+  xTaskCreate((void*) FiltroDistancia, "filtro", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+3, NULL);
+  xTaskCreate((void*) generacionPWM, "PWM", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY+1, NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
@@ -461,8 +461,8 @@ void FiltroDistancia(void const * argument)
 		  distancia=(int) suma/TAM_FILTRO;
 		  suma=0;
 		  //debug con uart
-//		  uartBufferLen=sprintf(uart_buf,"%u Cm \r\n",distancia);
-//		  HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
+		  uartBufferLen=sprintf(uart_buf,"%u Cm \r\n",distancia);
+		  HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
 		  xSemaphoreGive(semaforo2);
 	  }
 
@@ -487,8 +487,8 @@ void generacionPWM(void const * argument){
 			pwm = distancia + 10 -distancia % 10;
 
 		//uart debug
-//		uartBufferLen=sprintf(uart_buf,"%u pwm \r\n",pwm);
-//		HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
+		uartBufferLen=sprintf(uart_buf,"%u pwm \r\n",pwm);
+		HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
 
 		if(pwm!=pwm_ant){
 			TIM3->ARR = pwm;	//seteo período del pulso

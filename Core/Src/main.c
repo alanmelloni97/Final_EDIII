@@ -415,7 +415,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 		if(valorFinal>valorInicial)
 			pulso=valorFinal-valorInicial;
 		else if (valorFinal <= valorInicial)
-			pulso=__HAL_TIM_GET_AUTORELOAD(&htim2)-valorFinal+valorInicial;
+			pulso=__HAL_TIM_GET_AUTORELOAD(&htim2)-valorInicial+valorFinal;
 		xSemaphoreGiveFromISR(semaforo1,pdTRUE);
 
 	}

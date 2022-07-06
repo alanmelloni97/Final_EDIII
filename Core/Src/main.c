@@ -22,7 +22,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#define ARM_MATH_CM4
 
+#include "arm_math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,6 +35,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define TAM_FILTRO 5
+#define BLOCK_SIZE 32
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -437,8 +440,18 @@ void TrigSensor(void const * argument)
 }
 
 float muestras[TAM_FILTRO]={0};
+
 int pos=0;
 int distancia;
+arm_fir_instance_f32 filtro_fir;
+const float32_t firCoeffs32[TAM_FILTRO]={0.25};
+static float32_t firStateF32[BLOCK_SIZE + TAM_FILTRO - 1];
+float32_t  *inputF32=muestras, *outputF32;
+
+arm_fir_init_f32(&filtro_fir, TAM_FILTRO,&firCoeffs32[0], &firStateF32[0], BLOCK_SIZE);
+
+arm_fir_f32(&filtro_fir, inputF32, outputF32, BLOCK_SIZE);
+
 void FiltroDistancia(void const * argument)
 {
   /* USER CODE BEGIN 5 */
@@ -456,13 +469,16 @@ void FiltroDistancia(void const * argument)
 	  if(pos==TAM_FILTRO){
 		  pos=0;
 		  //saco el promedio de las muestras
-		  for(i = 0; i < TAM_FILTRO; i++)
-		      suma = suma + muestras[i];
-		  distancia=(int) suma/TAM_FILTRO;
-		  suma=0;
+//		  arm_fir_f32(&filtro_fir, muestras, salida,BLOCK_SIZE_FLOAT);
+
+//		  for(i = 0; i < TAM_FILTRO; i++)
+//		      suma = suma + muestras[i];
+//		  distancia=(int) suma/TAM_FILTRO;
+//		  suma=0;
+
 		  //debug con uart
-		  uartBufferLen=sprintf(uart_buf,"%u Cm \r\n",distancia);
-		  HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
+//		  uartBufferLen=sprintf(uart_buf,"%u Cm \r\n",distancia);
+//		  HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
 		  xSemaphoreGive(semaforo2);
 	  }
 
@@ -487,8 +503,8 @@ void generacionPWM(void const * argument){
 			pwm = distancia + 10 -distancia % 10;
 
 		//uart debug
-		uartBufferLen=sprintf(uart_buf,"%u pwm \r\n",pwm);
-		HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
+//		uartBufferLen=sprintf(uart_buf,"%u pwm \r\n",pwm);
+//		HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
 
 		if(pwm!=pwm_ant){
 			TIM3->ARR = pwm;	//seteo período del pulso
@@ -518,9 +534,9 @@ void StartDefaultTask(void const * argument)
   while(1)
   {
 	HAL_GPIO_WritePin(Trig_GPIO_Port, Trig_Pin, GPIO_PIN_SET);
-	vTaskDelay(1/portTICK_PERIOD_MS);
+	vTaskDelay(1/portTICK_PERIOD_MS);		// Delay de 1 ms
 	HAL_GPIO_WritePin(Trig_GPIO_Port, Trig_Pin, GPIO_PIN_RESET);
-	vTaskDelay(40/portTICK_PERIOD_MS);
+	vTaskDelay(40/portTICK_PERIOD_MS);		//Delay de 40 ms (output máximo del sensor: 38 ms)
   }
   /* USER CODE END 5 */
 }

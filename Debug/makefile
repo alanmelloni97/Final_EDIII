@@ -65,7 +65,7 @@ main-build: FreeRTOS_v1.elf secondary-outputs
 
 # Tool invocations
 FreeRTOS_v1.elf FreeRTOS_v1.map: $(OBJS) $(USER_OBJS) D:\Archivos\ de\ programa\ (HDD)\STM32CubeIDE\STM32CubeIDE_1.9.0\Workspace\FreeRTOS_v1\STM32F401RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "FreeRTOS_v1.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"D:\Archivos de programa (HDD)\STM32CubeIDE\STM32CubeIDE_1.9.0\Workspace\FreeRTOS_v1\STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="FreeRTOS_v1.map" -Wl,--gc-sections -static -L"../libs" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "FreeRTOS_v1.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"D:\Archivos de programa (HDD)\STM32CubeIDE\STM32CubeIDE_1.9.0\Workspace\FreeRTOS_v1\STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="FreeRTOS_v1.map" -Wl,--gc-sections -static -L"D:\Archivos de programa (HDD)\STM32CubeIDE\STM32CubeIDE_1.9.0\Workspace\FreeRTOS_v1\CMSIS-DSP" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

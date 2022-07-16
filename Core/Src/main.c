@@ -22,9 +22,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#define ARM_MATH_CM4
+//#define ARM_MATH_CM4
 
-#include "arm_math.h"
+#include <arm_math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -34,8 +34,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define TAM_FILTRO 5
-#define BLOCK_SIZE 32
+#define TAM_FILTRO (unsigned int) 5
+#define BLOCK_SIZE (unsigned int) 1
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -53,7 +53,14 @@ osThreadId defaultTaskHandle;
 /* USER CODE BEGIN PV */
 SemaphoreHandle_t semaforo1;
 SemaphoreHandle_t semaforo2;
-
+int distancia;
+int flancoAscendenteCapturado=0;
+int valorInicial=0;
+int valorFinal=0;
+int pulso=0;
+int velocidadSonido=343;
+uint32_t uartBufferLen=0;
+char uart_buf [50];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -391,18 +398,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
 }
 
-
-int flancoAscendenteCapturado=0;
-int valorInicial=0;
-int valorFinal=0;
-int pulso=0;
-int velocidadSonido=343;
-
-uint32_t uartBufferLen=0;
-char uart_buf [50];
-
-
-
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 
 	// Calculo el ancho del pulso que triguereó la interrupción
@@ -420,7 +415,6 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 		else if (valorFinal <= valorInicial)
 			pulso=__HAL_TIM_GET_AUTORELOAD(&htim2)-valorInicial+valorFinal;
 		xSemaphoreGiveFromISR(semaforo1,pdTRUE);
-
 	}
 }
 
@@ -439,51 +433,45 @@ void TrigSensor(void const * argument)
   /* USER CODE END 5 */
 }
 
-float muestras[TAM_FILTRO]={0};
-
-int pos=0;
-int distancia;
-arm_fir_instance_f32 filtro_fir;
-const float32_t firCoeffs32[TAM_FILTRO]={0.25};
-static float32_t firStateF32[BLOCK_SIZE + TAM_FILTRO - 1];
-float32_t  *inputF32=muestras, *outputF32;
-
-arm_fir_init_f32(&filtro_fir, TAM_FILTRO,&firCoeffs32[0], &firStateF32[0], BLOCK_SIZE);
-
-arm_fir_f32(&filtro_fir, inputF32, outputF32, BLOCK_SIZE);
 
 void FiltroDistancia(void const * argument)
 {
   /* USER CODE BEGIN 5 */
-	float suma;
-	int i;
+
+	float32_t muestras[TAM_FILTRO]={0};
+	arm_fir_instance_f32 filtro_fir;
+	static float32_t firCoeffs32[TAM_FILTRO]={1};
+	static float32_t firStateF32[BLOCK_SIZE + TAM_FILTRO - 1];
+	float32_t a[1]={0};
+	float32_t *outputF32=a;
+	uint16_t tamano_filtro=TAM_FILTRO;
+	uint32_t tam_bloque=BLOCK_SIZE;
+
+	arm_fir_init_f32(&filtro_fir, tamano_filtro,&firCoeffs32[0], &firStateF32[0],tam_bloque);
+
+
 
   /* Infinite loop */
   while(1)
   {
 	  xSemaphoreTake(semaforo1,portMAX_DELAY);
 
-	  //agrego muestra a muestras[], cuando tengo 5 doy el semaforo 2 para generar el nuevo pulso
-	  muestras[pos]=(float) pulso*343*100/(2*1000000);
-	  pos++;
-	  if(pos==TAM_FILTRO){
-		  pos=0;
-		  //saco el promedio de las muestras
-//		  arm_fir_f32(&filtro_fir, muestras, salida,BLOCK_SIZE_FLOAT);
-
-//		  for(i = 0; i < TAM_FILTRO; i++)
-//		      suma = suma + muestras[i];
-//		  distancia=(int) suma/TAM_FILTRO;
-//		  suma=0;
-
-		  //debug con uart
-//		  uartBufferLen=sprintf(uart_buf,"%u Cm \r\n",distancia);
-//		  HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
-		  xSemaphoreGive(semaforo2);
+	  //Muevo las muestras una posición hacia atras y agrego nueva muestra
+	  for(int x=1;x<TAM_FILTRO;x++){
+		  muestras[x-1]=muestras[x];
+		  muestras[x] =(float) pulso/58; //Segun datasheet
 	  }
+	  //LLamo a filtro FIR de CMSIS-DSP
+	  arm_fir_f32(&filtro_fir, muestras, outputF32, tam_bloque);
+	  distancia=(int) *outputF32;
 
+	  //debug con uart
+	  uartBufferLen=sprintf(uart_buf,"%u Cm \r\n",distancia);
+	  HAL_UART_Transmit(&huart2, (uint8_t *) uart_buf, uartBufferLen,HAL_MAX_DELAY);
 
-  }
+	  //Suelto semáforo 2 para que lo agarre generacionPWM()
+	  xSemaphoreGive(semaforo2);
+	  }
   /* USER CODE END 5 */
 }
 

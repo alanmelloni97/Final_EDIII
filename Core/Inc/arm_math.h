@@ -1206,13 +1206,13 @@ extern "C"
    * @param[in]     pState     points to the state buffer.
    * @param[in]     blockSize  number of samples that are processed at a time.
    */
+
   void arm_fir_init_f32(
   arm_fir_instance_f32 * S,
   uint16_t numTaps,
   float32_t * pCoeffs,
   float32_t * pState,
   uint32_t blockSize);
-
 
   /**
    * @brief Instance structure for the Q15 Biquad cascade filter.
